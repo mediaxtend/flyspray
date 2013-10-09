@@ -71,42 +71,37 @@ class Database
      */
     public function dbOpen($dbhost = '', $dbuser = '', $dbpass = '', $dbname = '', $dbtype = '', $dbprefix = '')
     {
-
         $this->dbtype   = $dbtype;
         $this->dbprefix = $dbprefix;
         $ADODB_COUNTRECS = false;
-        
-        $this->dblink = NewADOConnection($this->dbtype);
-        $this->dblink->Connect($dbhost, $dbuser, $dbpass, $dbname);
 
-        if ($this->dblink === false || (!empty($this->dbprefix) && !preg_match('/^[a-z][a-z0-9_]+$/i', $this->dbprefix))) {
+        if(preg_match('/^pdo_/i', $this->dbtype)) {
+            $this->dblink = NewADOConnection($this->dbtype."://".$dbuser.":".$dbpass."@".$dbhost."/".$dbname);
+        } else {
+            $this->dblink = NewADOConnection($this->dbtype);
+            $this->dblink->Connect($dbhost, $dbuser, $dbpass, $dbname);
+        }
 
+        if($this->dblink === false || (!empty($this->dbprefix) && !preg_match('/^[a-z][a-z0-9_]+$/i', $this->dbprefix))) {
             die('Flyspray was unable to connect to the database. '
                .'Check your settings in flyspray.conf.php');
         }
-            $this->dblink->SetFetchMode(ADODB_FETCH_BOTH);
+        $this->dblink->SetFetchMode(ADODB_FETCH_BOTH);
 
-            /*
-             * this will work only in the following systems/PHP versions
-             *
-             * PHP4 and 5 with postgresql
-             * PHP5 with "mysqli" or "pdo_mysql" driver (not "mysql" driver)
-             * using mysql 4.1.11 or later and mysql 5.0.6 or later.
-             *
-             * in the rest of the world, it will silently return FALSE.
-             */
-
+        if(preg_match('/^pdo_/i', $this->dbtype))
+            $this->dblink->Execute("SET CHARACTER SET utf8");
+        else
             $this->dblink->SetCharSet('utf8');
 
-            //enable debug if constact DEBUG_SQL is defined.
-            !defined('DEBUG_SQL') || $this->dblink->debug = true;
-            
-            if($dbtype === 'mysql' || $dbtype === 'mysqli') {
-                $dbinfo = $this->dblink->ServerInfo();
-                if(isset($dbinfo['version']) && version_compare($dbinfo['version'], '5.0.2', '>=')) {
-                    $this->dblink->Execute("SET SESSION SQL_MODE='TRADITIONAL'");
-                }
+        //enable debug if constact DEBUG_SQL is defined.
+        !defined('DEBUG_SQL') || $this->dblink->debug = true;
+        
+        if($dbtype === 'mysql' || $dbtype === 'mysqli') {
+            $dbinfo = $this->dblink->ServerInfo();
+            if(isset($dbinfo['version']) && version_compare($dbinfo['version'], '5.0.2', '>=')) {
+                $this->dblink->Execute("SET SESSION SQL_MODE='TRADITIONAL'");
             }
+        }
     }
 
     /**
